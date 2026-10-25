@@ -1,11 +1,12 @@
-// Licensed under the Dartastic Pro Software License Agreement.
+// Licensed under the Apache License, Version 2.0
 // Copyright 2025-2026 Mindful Software LLC d/b/a Dartastic.io, All rights reserved.
 
-import 'package:dartastic_opentelemetry/dartastic_opentelemetry.dart';
+import 'package:dartastic_opentelemetry_api/dartastic_opentelemetry_api.dart';
 
 import 'otel_doppler_suppression.dart';
 
 class DopplerResult {
+  /// Creates a result.
   const DopplerResult({
     this.workplace,
     this.project,
@@ -29,8 +30,13 @@ class DopplerResult {
   final String? errorMessage;
 }
 
+/// What a traced call returned: the value for the caller plus fields
+/// recorded on the span.
 class DopplerCallResult<T> {
+  /// Creates a call result.
   const DopplerCallResult({required this.value, this.result});
+
+  /// The value returned to the caller.
   final T value;
   final DopplerResult? result;
 }
@@ -38,58 +44,61 @@ class DopplerCallResult<T> {
 Future<T> tracedDoppler<T>({
   required String operation,
   required Future<DopplerCallResult<T>> Function() invoke,
-  Tracer? tracer,
+  APITracer? tracer,
 }) async {
   if (dopplerInstrumentationSuppressed()) {
     final r = await invoke();
     return r.value;
   }
-  final t = tracer ?? OTel.tracerProvider().getTracer('otel_doppler');
+  final t = tracer ?? OTelAPI.tracerProvider().getTracer('otel_doppler');
   final span = t.startSpan('doppler $operation', kind: SpanKind.client);
   try {
     span.addAttributes(
-        OTel.attributes([OTel.attributeString('rpc.system', 'doppler')]));
+        OTelAPI.attributes([OTelAPI.attributeString('rpc.system', 'doppler')]));
     final r = await invoke();
     final res = r.result;
     if (res != null) {
       if (res.workplace != null) {
-        span.addAttributes(OTel.attributes(
-            [OTel.attributeString('doppler.workplace', res.workplace!)]));
+        span.addAttributes(OTelAPI.attributes(
+            [OTelAPI.attributeString('doppler.workplace', res.workplace!)]));
       }
       if (res.project != null) {
-        span.addAttributes(OTel.attributes(
-            [OTel.attributeString('doppler.project', res.project!)]));
+        span.addAttributes(OTelAPI.attributes(
+            [OTelAPI.attributeString('doppler.project', res.project!)]));
       }
       if (res.config != null) {
-        span.addAttributes(OTel.attributes(
-            [OTel.attributeString('doppler.config', res.config!)]));
+        span.addAttributes(OTelAPI.attributes(
+            [OTelAPI.attributeString('doppler.config', res.config!)]));
       }
       if (res.environment != null) {
-        span.addAttributes(OTel.attributes(
-            [OTel.attributeString('doppler.environment', res.environment!)]));
+        span.addAttributes(OTelAPI.attributes([
+          OTelAPI.attributeString('doppler.environment', res.environment!)
+        ]));
       }
       if (res.secretName != null) {
-        span.addAttributes(OTel.attributes(
-            [OTel.attributeString('doppler.secret.name', res.secretName!)]));
+        span.addAttributes(OTelAPI.attributes(
+            [OTelAPI.attributeString('doppler.secret.name', res.secretName!)]));
       }
       if (res.secretsCount != null) {
-        span.addAttributes(OTel.attributes(
-            [OTel.attributeInt('doppler.secrets.count', res.secretsCount!)]));
+        span.addAttributes(OTelAPI.attributes([
+          OTelAPI.attributeInt('doppler.secrets.count', res.secretsCount!)
+        ]));
       }
       if (res.statusCode != null) {
-        span.addAttributes(OTel.attributes(
-            [OTel.attributeInt('http.response.status_code', res.statusCode!)]));
+        span.addAttributes(OTelAPI.attributes([
+          OTelAPI.attributeInt('http.response.status_code', res.statusCode!)
+        ]));
       }
       if (res.errorCode != null) {
-        span.addAttributes(OTel.attributes(
-            [OTel.attributeString('doppler.error.code', res.errorCode!)]));
+        span.addAttributes(OTelAPI.attributes(
+            [OTelAPI.attributeString('doppler.error.code', res.errorCode!)]));
       }
       final fail = res.errorCode != null ||
           (res.statusCode != null && res.statusCode! >= 400);
       if (fail) {
-        span.addAttributes(OTel.attributes([
-          OTel.attributeString(
-            ErrorResource.errorType.key,
+        span.addAttributes(OTelAPI.attributes([
+          OTelAPI.attributeString(
+            ErrorAttributes.errorType.key,
             res.errorCode ?? 'doppler.error',
           )
         ]));
